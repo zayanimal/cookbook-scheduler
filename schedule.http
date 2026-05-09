@@ -1,0 +1,10 @@
+### POST request to example server
+POST http://localhost:8080/schedule
+Content-Type: application/json
+
+{
+  "type": "telegram",
+  "message": "Заменить фильтр для воды",
+  "executionDateTime": "2026-05-09T23:03:00.000"
+}
+

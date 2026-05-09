@@ -1,46 +1,27 @@
 package cookbook.scheduler.service.impl;
 
-import static java.lang.StrictMath.abs;
-import static java.util.Comparator.comparingLong;
-
-import java.sql.Date;
-import java.util.stream.Collectors;
-
-import cookbook.scheduler.entity.ScheduledTask;
-import cookbook.scheduler.repository.TaskJpaRepository;
-import cookbook.scheduler.service.ExecutorService;
+import cookbook.scheduler.dto.NotifyRequest;
+import cookbook.scheduler.notifier.NotifierRouter;
 import cookbook.scheduler.service.SchedulerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import lombok.val;
-import org.springframework.scheduling.annotation.Scheduled;
+import org.jobrunr.scheduling.JobScheduler;
 import org.springframework.stereotype.Service;
+
+import static cookbook.scheduler.notifier.enums.NotifyType.of;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class SchedulerServiceImpl implements SchedulerService {
 
-    private final ExecutorService executorService;
+    private final JobScheduler jobScheduler;
 
-    private final TaskJpaRepository taskRepository;
+    private final NotifierRouter notifierRouter;
 
     @Override
-    @Scheduled(fixedDelay = 5000)
-    public void fetchTasksFromDb() {
-        val currentTime = System.currentTimeMillis();
-        val tasks = taskRepository.findAllByExecutionDateOrderByExecutionTimeAsc(new Date(currentTime))
-            .stream()
-            .sorted(comparingLong(task -> abs(task.getExecutionTime().getTime() - currentTime)))
-            .limit(10)
-            .peek(executorService::execute)
-            .map(ScheduledTask::getMessage)
-            .collect(Collectors.joining(", "));
-
-        if (!tasks.isBlank()) {
-            log.info("Установлены задачи на исполнение: {}", tasks);
-        }
-
-        log.info("Нет задач на исполнение");
+    public void schedule(NotifyRequest request) {
+        jobScheduler.schedule(request.getExecutionDateTime(), () ->
+            notifierRouter.sendNotification(of(request.getType()), request.getMessage()));
     }
 }
